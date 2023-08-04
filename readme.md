@@ -13,33 +13,31 @@ Run `pip3 install -r requirements.txt`
 ## Run
 
 - Set up 2 images directory with folders inside
-    
 
-    ├── data
-
-    │   ├── training
-
-    │   │   ├── real
-
-    │   │   ├── spoof
-
-    │   ├── evaluation
-
-    │   │   ├── real
-
-    │   │   ├── spoof
-
-    │   ├── development
-
-    │   │   ├── real
-
-    │   │   ├── spoof
-
-    ├── test
-
-    │   ├── real
-
-    │   ├── spoof
+    <pre>data folder
+     ┬
+     ├ data
+         ┬  
+         ├ training
+             ┬  
+             ├ spoof  
+             └ real 
+         ├ evaluation  
+             ┬  
+             ├ spoof  
+             └ real 
+         └ development  
+             ┬  
+             ├ spoof  
+             └ real
+  
+    test folder
+        ┬
+        ├ test
+          ┬  
+          ├ spoof  
+          └ real
+  </pre>
 
 - Run `python train.py` to initialize and train your model
 - Run `python tflite.py` to create your `.tflite` model
