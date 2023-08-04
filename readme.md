@@ -16,18 +16,29 @@ Run `pip3 install -r requirements.txt`
     
 
     ├── data
+
     │   ├── training
+
     │   │   ├── real
+
     │   │   ├── spoof
+
     │   ├── evaluation
+
     │   │   ├── real
+
     │   │   ├── spoof
+
     │   ├── development
+
     │   │   ├── real
+
     │   │   ├── spoof
 
     ├── test
+
     │   ├── real
+
     │   ├── spoof
 
 - Run `python train.py` to initialize and train your model
