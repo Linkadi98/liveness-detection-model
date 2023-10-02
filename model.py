@@ -1,19 +1,15 @@
-from keras.models import Model
 from keras.applications import mobilenet_v2
 from keras.layers import Conv2D, Dropout, Dense
 from keras.layers import GlobalAveragePooling2D
 from keras.optimizers import Adam
+from keras.models import Model
+
 
 def GetModel(img_width, img_height):
     pretrain_net = mobilenet_v2.MobileNetV2(input_shape=(img_width, img_height, 3), include_top=False, weights='imagenet')
 
-    freeze_before = None
-    if freeze_before:
-        for layer in pretrain_net.layers:
-            if layer.name == freeze_before:
-                break
-            else:
-                layer.trainable = False
+    for layer in pretrain_net.layers:
+        layer.trainable = True
 
     x = pretrain_net.output
     x = Conv2D(32, (3, 3), activation='relu')(x)
