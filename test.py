@@ -2,10 +2,12 @@ import os
 import cv2
 import numpy as np
 import tensorflow as tf
+import argparse
 
-model_file_name = "model/model.tflite"
-test_dir = "test"
-threshold = 0.5
+parser = argparse.ArgumentParser()
+parser.add_argument("-t", "--threshold", type=float)
+parser.add_argument("-d", "--test_dir", type=str, default='test', help="path to 'test' folder")
+parser.add_argument("-m", "--model_file", type=str, default='model.tflite', help="path to '.tflite' model file")
 
 
 def predict_spoof(image_path, width, height, interpreter):
@@ -17,13 +19,17 @@ def predict_spoof(image_path, width, height, interpreter):
     interpreter.invoke()
     tflite_results = interpreter.get_tensor(output_details[0]['index'])
     prediction_value = np.squeeze(tflite_results)
-    prediction = np.zeros(prediction_value.shape).astype(np.int32)  # Sigmoid
-    prediction[prediction_value > threshold] = 1
 
-    return prediction
+    return 0 if prediction_value < threshold else 1
 
 
 if __name__ == '__main__':
+    args = vars(parser.parse_args())
+
+    test_dir = args["test_dir"]
+    threshold = args["threshold"]
+    model_file_name = args["model_file"]
+
     if os.path.isfile(model_file_name):
         interpreter = tf.lite.Interpreter(model_path=model_file_name)
         interpreter.allocate_tensors()
@@ -34,29 +40,36 @@ if __name__ == '__main__':
         spoof_dir = os.path.join(test_dir, "spoof")
         real_dir = os.path.join(test_dir, "real")
 
-        false_accepts = 0
-        false_rejects = 0
-        total = 0
+        tp, tn, fp, fn = 0, 0, 0, 0
 
         for img in os.listdir(spoof_dir):
             img_name, ext = os.path.splitext(img)
             if ext in [".png", ".jpg", ".bmp"]:
                 prediction = predict_spoof(os.path.join(spoof_dir, img), img_width, img_height, interpreter)
-                if prediction != 1:
-                    false_accepts += 1
-                total += 1
+                if prediction == 0:
+                    fp += 1
+                else:
+                    tn += 1
 
         for img in os.listdir(real_dir):
             img_name, ext = os.path.splitext(img)
             if ext in [".png", ".jpg", ".bmp"]:
                 prediction = predict_spoof(os.path.join(real_dir, img), img_width, img_height, interpreter)
                 if prediction == 1:
-                    false_rejects += 1
-                total += 1
+                    fn += 1
+                else:
+                    tp += 1
 
-        FAR = int(false_accepts / max(total, 1) * 100)
-        FRR = int(false_rejects / max(total, 1) * 100)
+        total = tp + tn + fp + fn
+        FAR = int(fp / max(total, 1) * 100)
+        FRR = int(fn / max(total, 1) * 100)
+        accuracy = (tp + tn) / total * 100
+        APCER = fp / (tn + fp)
+        BPCER = fn / (tp + fn)
+        ACER = (APCER + BPCER) / 2 * 100
         print(f"False Accept Rate %: {FAR}")
         print(f"False Rejection Rate %: {FRR}")
+        print(f"Accuracy %: {accuracy}")
+        print(f"ACER %: {ACER}")
     else:
         print("There is no model.tflite file")
