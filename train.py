@@ -2,32 +2,58 @@ import os
 import glob
 import pandas as pd
 import tensorflow as tf
+import argparse
 from model import GetModel
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-img_width = 224
-img_height = 224
+parser = argparse.ArgumentParser()
+parser.add_argument("-w", "--img_width", type=int, default=224)
+parser.add_argument("-h", "--img_height", type=int, default=224)
+parser.add_argument("-sd", "--seed_number", type=int, default=24)
+parser.add_argument("-tbs", "--train_batch_size", type=int, default=32)
+parser.add_argument("-vbs", "--val_batch_size", type=int, default=32)
+parser.add_argument("-bs", "--batch_size", type=int, default=1)
+parser.add_argument("-e", "--num_epochs", type=int, default=10)
+parser.add_argument("-s", "--steps_per_epoch", type=int, default=100)
+parser.add_argument("-vs", "--validation_steps", type=int, default=1)
+parser.add_argument("-i", "--input_data_path", type=str, default='data_resized', help="path to root 'data' folder")
+parser.add_argument("-m", "--model_path", type=str, default='model', help="path to model folder")
 
-seed_number = 24
-
-train_batch_size = 32
-val_batch_size = 32
-batch_size = 1
-
-num_epochs = 15
-validation_steps = 1
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Limit GPU memory growth
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        print(e)
 
 if __name__ == '__main__':
+    args = vars(parser.parse_args())
+
+    img_width = args["img_width"]
+    img_height = args["img_height"]
+
+    seed_number = args["seed_number"]
+
+    train_batch_size = args["train_batch_size"]
+    val_batch_size = args["val_batch_size"]
+    batch_size = args["batch_size"]
+
+    num_epochs = args["num_epochs"]
+    steps_per_epoch = args["steps_per_epoch"]
+    validation_steps = args["validation_steps"]
 
     model = GetModel(img_width, img_height)
 
-    input_dir = "data"
-    train_dir = os.path.join(input_dir, 'training')
-    val_dir = os.path.join(input_dir, 'development')
-    test_dir = os.path.join(input_dir, 'evaluation')
+    input_dir = args["input_data_path"]
+    train_dir = os.path.join(input_dir, 'train')
+    val_dir = os.path.join(input_dir, 'validation')
+    test_dir = os.path.join(input_dir, 'test')
     label_name = [subdir for subdir in sorted(os.listdir(train_dir)) if os.path.isdir(os.path.join(train_dir, subdir))]
-
     dir_dict = {'train': train_dir, 'val': val_dir, 'test': test_dir}
     case_count, set_length = {}, {}
 
@@ -38,7 +64,7 @@ if __name__ == '__main__':
         for label in label_name:
             label_list = list(sorted(glob.glob(os.path.join(val, label, "*.png"))))
             if len(label_list) == 0:
-                continue
+                label_list = list(sorted(glob.glob(os.path.join(val, label, "*.jpg"))))
 
             case_count[key][label] = len(label_list)
             set_count += len(label_list)
@@ -47,8 +73,6 @@ if __name__ == '__main__':
 
     case_count_df = pd.DataFrame(case_count)
 
-    val_datagen = ImageDataGenerator(rescale=1. / 255)
-    test_datagen = ImageDataGenerator(rescale=1. / 255) if set_length["test"] > 0 else None
     train_datagen = ImageDataGenerator(rescale=1. / 255,
                                        rotation_range=20,
                                        width_shift_range=0.2,
@@ -57,8 +81,7 @@ if __name__ == '__main__':
                                        zoom_range=0.15,
                                        horizontal_flip=True,
                                        fill_mode="nearest")
-
-
+    val_datagen = ImageDataGenerator(rescale=1. / 255)
 
     train_gen = train_datagen.flow_from_directory(train_dir,
                                                   batch_size=train_batch_size,
@@ -72,23 +95,14 @@ if __name__ == '__main__':
                                               target_size=(img_width, img_height),
                                               seed=seed_number)
 
-    if test_datagen is not None:
-        test_gen = test_datagen.flow_from_directory(test_dir,
-                                                    batch_size=batch_size,
-                                                    class_mode='binary',
-                                                    target_size=(img_width, img_height),
-                                                    seed=seed_number,
-                                                    shuffle=False)
-    else:
-        test_gen = None
-
     train_length = len(train_gen.classes)
     weight0 = train_length / case_count_df['train'][label_name[0]] * (1 / len(label_name))
     weight1 = train_length / case_count_df['train'][label_name[1]] * (1 / len(label_name))
     class_weight = {0: weight0, 1: weight1}
 
     train_id = "train-weights"
-    save_dir = os.path.join("model", train_id)
+    model_dir = args["model_path"]
+    save_dir = os.path.join(model_dir, train_id)
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
@@ -96,17 +110,18 @@ if __name__ == '__main__':
     cont_checkpoint = ModelCheckpoint(os.path.join(save_dir, cont_filepath))
 
     best_filepath = "mobilenetv2-best.hdf5"
-    best_checkpoint = ModelCheckpoint(os.path.join(save_dir, best_filepath), save_best_only=True, save_weights_only=True)
+    best_checkpoint = ModelCheckpoint(os.path.join(save_dir, best_filepath), save_best_only=True,
+                                      save_weights_only=True)
 
     plateau_scheduler = ReduceLROnPlateau(factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7)
 
     history = model.fit(train_gen,
                         epochs=num_epochs,
-                        steps_per_epoch=set_length['train'] // train_batch_size,
+                        steps_per_epoch=steps_per_epoch,
                         validation_data=val_gen,
                         validation_steps=validation_steps,
                         callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler],
                         class_weight=class_weight)
 
-    saved_model_path = 'model/saved_model_dir'
-    tf.saved_model.save(model, saved_model_path)
+    saved_model_path = os.path.join(model_dir, 'saved_model_dir')
+    tf.keras.models.save_model(model, saved_model_path)
