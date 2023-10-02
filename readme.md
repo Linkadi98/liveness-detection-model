@@ -65,11 +65,9 @@ Run `pip3 install -r requirements.txt`
 - Run `python test.py` to test your model on images in `test` folder
   ```
   python3 test.py \
-      --classifier ./pretrain/classifier/classifier.hdf5 \
-      --detector ./pretrain/detector \
-      --path ./input/demo/lowres.mp4 \
-      --video --resize 224 224 \
-      --save ./output/demo/lowres_pred.avi
+      --threshold 0.5 \
+      --test_dir test \
+      --model_file model.tflite
   ```
 
 ## License
