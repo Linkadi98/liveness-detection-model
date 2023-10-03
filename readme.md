@@ -72,4 +72,4 @@ Run `pip3 install -r requirements.txt`
 
 ## License
 
-Liveness detection model is released under the GNU PUB3 License. See the [LICENSE](https://github.com/biometric-technologies/liveness-detection-model/blob/main/LICENSE.md) for details.
+Liveness detection model is released under the MIT License. See the [LICENSE](https://github.com/biometric-technologies/liveness-detection-model/blob/main/LICENSE.md) for details.
