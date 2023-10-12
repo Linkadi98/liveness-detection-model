@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 import tensorflow as tf
 import argparse
+import matplotlib.pyplot as plt
 from model import GetModel
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
@@ -47,11 +48,13 @@ if __name__ == '__main__':
     steps_per_epoch = args["steps_per_epoch"]
     validation_steps = args["validation_steps"]
 
+    model_dir = args["model_path"]
+
     model = GetModel(img_width, img_height)
 
     input_dir = args["input_data_path"]
     train_dir = os.path.join(input_dir, 'train')
-    val_dir = os.path.join(input_dir, 'validation')
+    val_dir = os.path.join(input_dir, 'valid')
     test_dir = os.path.join(input_dir, 'test')
     label_name = [subdir for subdir in sorted(os.listdir(train_dir)) if os.path.isdir(os.path.join(train_dir, subdir))]
     dir_dict = {'train': train_dir, 'val': val_dir, 'test': test_dir}
@@ -101,7 +104,6 @@ if __name__ == '__main__':
     class_weight = {0: weight0, 1: weight1}
 
     train_id = "train-weights"
-    model_dir = args["model_path"]
     save_dir = os.path.join(model_dir, train_id)
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -125,3 +127,17 @@ if __name__ == '__main__':
 
     saved_model_path = os.path.join(model_dir, 'saved_model_dir')
     tf.keras.models.save_model(model, saved_model_path)
+
+    # Plotting training loss
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    img_path = os.path.join(model_dir, 'train_metrics.png')
+
+    plt.savefig(img_path, dpi=300, bbox_inches='tight')
