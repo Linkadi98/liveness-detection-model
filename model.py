@@ -12,13 +12,17 @@ def GetModel(img_width, img_height):
         layer.trainable = True
 
     x = pretrain_net.output
-    x = Conv2D(32, (3, 3), activation='relu')(x)
-    x = Dropout(rate=0.2, name='extra_dropout1')(x)
+    x = Conv2D(32, (1, 1), activation='relu', padding='same')(x)
     x = GlobalAveragePooling2D()(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(rate=0.3)(x)
+    x = Dense(64, activation='relu')(x)
+    x = Dropout(rate=0.2)(x)
+
     x = Dense(1, activation='sigmoid', name='classifier')(x)
 
     model = Model(inputs=pretrain_net.input, outputs=x, name='mobilenetv2_spoof')
-    learning_rate = 5e-5  # Set the learning rate to use
-    model.compile(optimizer=Adam(lr=learning_rate), loss='binary_crossentropy', metrics=['acc'])
+    learning_rate = 0.0001
+    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='binary_crossentropy', metrics=['acc'])
 
     return model
