@@ -9,7 +9,7 @@ from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-w", "--img_width", type=int, default=224)
-parser.add_argument("-h", "--img_height", type=int, default=224)
+parser.add_argument("-ht", "--img_height", type=int, default=224)
 parser.add_argument("-sd", "--seed_number", type=int, default=24)
 parser.add_argument("-tbs", "--train_batch_size", type=int, default=32)
 parser.add_argument("-vbs", "--val_batch_size", type=int, default=32)
