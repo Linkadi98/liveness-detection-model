@@ -3,11 +3,15 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import argparse
+import csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--threshold", type=float)
 parser.add_argument("-d", "--test_dir", type=str, default='test', help="path to 'test' folder")
 parser.add_argument("-m", "--model_file", type=str, default='model.tflite', help="path to '.tflite' model file")
+parser.add_argument("-f", "--output_file", type=str, default='result.csv', help="path to file with results")
+parser.add_argument("-e", "--epoch", type=int, default=1)
+parser.add_argument("-s", "--steps_per_epoch", type=int, default=1)
 
 
 def predict_spoof(image_path, width, height, interpreter):
@@ -29,6 +33,9 @@ if __name__ == '__main__':
     test_dir = args["test_dir"]
     threshold = args["threshold"]
     model_file_name = args["model_file"]
+    file_name = args["output_file"]
+    epoch = args["epoch"]
+    steps_per_epoch = args["steps_per_epoch"]
 
     if os.path.isfile(model_file_name):
         interpreter = tf.lite.Interpreter(model_path=model_file_name)
@@ -63,13 +70,16 @@ if __name__ == '__main__':
         total = tp + tn + fp + fn
         FAR = int(fp / max(total, 1) * 100)
         FRR = int(fn / max(total, 1) * 100)
-        accuracy = (tp + tn) / total * 100
+        ACC = (tp + tn) / total * 100
         APCER = fp / (tn + fp)
         BPCER = fn / (tp + fn)
         ACER = (APCER + BPCER) / 2 * 100
         print(f"False Accept Rate %: {FAR}")
         print(f"False Rejection Rate %: {FRR}")
-        print(f"Accuracy %: {accuracy}")
+        print(f"Accuracy %: {ACC}")
         print(f"ACER %: {ACER}")
+        with open(file_name, mode="a", newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([epoch, steps_per_epoch, threshold, FAR, FRR, ACC, ACER])
     else:
         print("There is no model.tflite file")
