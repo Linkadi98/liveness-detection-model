@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-el", "--list_of_epochs", type=int, nargs='+', default=[1])
 parser.add_argument("-sl", "--list_of_steps", type=int, nargs='+', default=[1])
 parser.add_argument("-tl", "--list_of_thresholds", type=float, nargs='+', default=[0.5])
+parser.add_argument("-td", "--test_dir", type=str, default=None, help="path to 'test' folder")
 
 
 if __name__ == '__main__':
@@ -15,6 +16,7 @@ if __name__ == '__main__':
     list_of_epochs = args["list_of_epochs"]
     list_of_steps = args["list_of_steps"]
     list_of_thresholds = args["list_of_thresholds"]
+    test_dir = args["test_dir"]
 
     if not os.path.isdir('models'):
         os.makedirs('models')
@@ -46,6 +48,6 @@ if __name__ == '__main__':
             for threshold in list_of_thresholds:
                 try:
                     subprocess.run(
-                        ["python", "test.py"] + ["--threshold", str(threshold), "--test_dir", "test_small", "--model_file", tflite_path, "--output_file", outputfile_path, "--epoch", str(epoch), "--steps_per_epoch", str(step)], check=True)
+                        ["python", "test.py"] + ["--threshold", str(threshold), "--test_dir", test_dir, "--model_file", tflite_path, "--output_file", outputfile_path, "--epoch", str(epoch), "--steps_per_epoch", str(step)], check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error running test.py: {e}")
