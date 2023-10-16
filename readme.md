@@ -69,6 +69,15 @@ Run `pip3 install -r requirements.txt`
       --test_dir test \
       --model_file model.tflite
   ```
+- Optionally you can run `train_script.py` file to train number of models, convert them into `.tflite` files and test on images in some folder with number of thresholds.
+  For example, if you run next command you'll train 4 models and test them on the list of thresholds:
+  ```
+  python3 train_script.py \
+      --list_of_epochs 5 10 \
+      --list_of_steps 10 100 \
+      --list_of_thresholds 0.01 0.1 0.5 \
+      --test_dir test
+  ```
 
 ## License
 
