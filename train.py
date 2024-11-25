@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from keras.src.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
 from keras.src.preprocessing.image import ImageDataGenerator
 
-from model import GetModel
+from model import getModel
 
 # Argument parser setup
 parser = argparse.ArgumentParser()
@@ -49,13 +49,14 @@ if __name__ == '__main__':
     train_datagen = ImageDataGenerator(
         rescale=1.0 / 255,
         rotation_range=20,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.15,
-        zoom_range=0.15,
+        width_shift_range=0.1,
+        height_shift_range=0.1,
+        shear_range=0.1,
+        zoom_range=0.2,
         horizontal_flip=True,
         fill_mode="nearest",
     )
+
     val_datagen = ImageDataGenerator(rescale=1.0 / 255)
 
     # Data generators
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     )
 
     # Build the model
-    model = GetModel(img_width, img_height)
+    model = getModel(img_width, img_height)
 
     # Callbacks
     save_dir = os.path.join(model_dir, "checkpoints")
@@ -96,6 +97,10 @@ if __name__ == '__main__':
 
     plateau_scheduler = ReduceLROnPlateau(factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7)
 
+    lr_scheduler = ReduceLROnPlateau(
+        monitor='val_loss', factor=0.5, patience=2, min_lr=1e-6, verbose=1
+    )
+
     early_stopping = EarlyStopping(
         monitor='val_acc',
         patience=5,  # Stop after 5 epochs of no improvement
@@ -109,34 +114,34 @@ if __name__ == '__main__':
         epochs=num_epochs,
         steps_per_epoch=len(train_gen),
         validation_steps=len(val_gen),
-        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler, early_stopping],
+        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler, early_stopping, lr_scheduler],
     )
 
     # Save final model
-    saved_model_path = os.path.join(model_dir, "final_model.h5")
+    saved_model_path = os.path.join(model_dir, "final_model.keras")
     tf.keras.models.save_model(model, saved_model_path)
 
     # Plot metrics
-    plt.figure(figsize=(12, 4))
-
-    # Plot loss
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history["loss"], label="Train Loss")
-    plt.plot(history.history["val_loss"], label="Validation Loss")
-    plt.title("Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
-
-    # Plot accuracy
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history["accuracy"], label="Train Accuracy")
-    plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
-    plt.title("Accuracy")
-    plt.xlabel("Epochs")
-    plt.ylabel("Accuracy")
-    plt.legend()
-
-    # Save metrics plot
-    metrics_plot_path = os.path.join(model_dir, "training_metrics.png")
-    plt.savefig(metrics_plot_path, dpi=300, bbox_inches="tight")
+    # plt.figure(figsize=(12, 4))
+    #
+    # # Plot loss
+    # plt.subplot(1, 2, 1)
+    # plt.plot(history.history["loss"], label="Train Loss")
+    # plt.plot(history.history["val_loss"], label="Validation Loss")
+    # plt.title("Loss")
+    # plt.xlabel("Epochs")
+    # plt.ylabel("Loss")
+    # plt.legend()
+    #
+    # # Plot accuracy
+    # plt.subplot(1, 2, 2)
+    # plt.plot(history.history["accuracy"], label="Train Accuracy")
+    # plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+    # plt.title("Accuracy")
+    # plt.xlabel("Epochs")
+    # plt.ylabel("Accuracy")
+    # plt.legend()
+    #
+    # # Save metrics plot
+    # metrics_plot_path = os.path.join(model_dir, "training_metrics.png")
+    # plt.savefig(metrics_plot_path, dpi=300, bbox_inches="tight")
