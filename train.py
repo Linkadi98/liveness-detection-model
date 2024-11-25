@@ -4,9 +4,10 @@ import pandas as pd
 import tensorflow as tf
 import argparse
 import matplotlib.pyplot as plt
+from keras.src.callbacks import ReduceLROnPlateau, ModelCheckpoint
+from keras.src.legacy.preprocessing.image import ImageDataGenerator
+
 from model import GetModel
-from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 # Argument parser setup
 parser = argparse.ArgumentParser()
@@ -83,13 +84,13 @@ if __name__ == '__main__':
     os.makedirs(save_dir, exist_ok=True)
 
     best_checkpoint = ModelCheckpoint(
-        filepath=os.path.join(save_dir, "mobilenetv3-best.hdf5"),
+        filepath=os.path.join(save_dir, "mobilenetv3-best.weights.h5"),
         save_best_only=True,
         save_weights_only=True,
         verbose=1,
     )
     cont_checkpoint = ModelCheckpoint(
-        filepath=os.path.join(save_dir, "mobilenetv3-epoch_{epoch:02d}.hdf5"),
+        filepath=os.path.join(save_dir, "mobilenetv3-epoch_{epoch:02d}.weights.h5"),
         save_weights_only=True,
         verbose=1,
     )
@@ -106,7 +107,7 @@ if __name__ == '__main__':
     )
 
     # Save final model
-    saved_model_path = os.path.join(model_dir, "final_model")
+    saved_model_path = os.path.join(model_dir, "final_model.h5")
     tf.keras.models.save_model(model, saved_model_path)
 
     # Plot metrics

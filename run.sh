@@ -1,9 +1,9 @@
 #!/bin/zsh
 
-python3 dataset.py \
-      --input_dir LCC_FASD \
-      --resized_dir data_resized \
-      --target_size 224
+#python3 dataset.py \
+#      --input_dir LCC_FASD \
+#      --output_dir data_resized \
+#      --target_size 224
 
 python3 train.py \
       --img_width 224 \
@@ -11,7 +11,7 @@ python3 train.py \
       --seed_number 24 \
       --train_batch_size 32 \
       --val_batch_size 32 \
-      --num_epochs 10 \
+      --num_epochs 20 \
       --input_data_path data_resized \
       --model_path model
 

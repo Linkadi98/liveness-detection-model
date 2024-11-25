@@ -1,9 +1,7 @@
-from keras.layers import Conv2D, Dropout, Dense
-from keras.layers import GlobalAveragePooling2D
-from keras.optimizers.legacy import Adam
-from keras.models import Model
-from keras.src.applications import MobileNetV3Large
-from keras.src.applications import MobileNetV3Small
+from keras import Model
+from keras.src.applications.mobilenet_v3 import MobileNetV3Small, MobileNetV3Large
+from keras.src.layers import Conv2D, GlobalAveragePooling2D, Dense, Dropout
+from keras.src.optimizers import Adam
 
 
 def GetModel(img_width, img_height, type='small'):
