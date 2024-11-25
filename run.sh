@@ -15,6 +15,6 @@ python3 train.py \
       --input_data_path data_resized \
       --model_path model
 
-python3 tflite.py \
-      --saved_model_dir saved_model \
-      --tflite_file_path model.tflite
+#python3 tflite.py \
+#      --saved_model_dir saved_model \
+#      --tflite_file_path model.tflite

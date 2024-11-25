@@ -1,11 +1,9 @@
 import os
-import glob
-import pandas as pd
 import tensorflow as tf
 import argparse
 import matplotlib.pyplot as plt
-from keras.src.callbacks import ReduceLROnPlateau, ModelCheckpoint
-from keras.src.legacy.preprocessing.image import ImageDataGenerator
+from keras.src.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
+from keras.src.preprocessing.image import ImageDataGenerator
 
 from model import GetModel
 
@@ -69,7 +67,7 @@ if __name__ == '__main__':
         seed=seed_number,
     )
     val_gen = val_datagen.flow_from_directory(
-        development_dir,
+        evaluation_dir,
         target_size=(img_width, img_height),
         batch_size=val_batch_size,
         class_mode="binary",
@@ -89,12 +87,20 @@ if __name__ == '__main__':
         save_weights_only=True,
         verbose=1,
     )
+
     cont_checkpoint = ModelCheckpoint(
         filepath=os.path.join(save_dir, "mobilenetv3-epoch_{epoch:02d}.weights.h5"),
         save_weights_only=True,
         verbose=1,
     )
+
     plateau_scheduler = ReduceLROnPlateau(factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7)
+
+    early_stopping = EarlyStopping(
+        monitor='val_acc',
+        patience=5,  # Stop after 5 epochs of no improvement
+        restore_best_weights=True
+    )
 
     # Training
     history = model.fit(
@@ -103,7 +109,7 @@ if __name__ == '__main__':
         epochs=num_epochs,
         steps_per_epoch=len(train_gen),
         validation_steps=len(val_gen),
-        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler],
+        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler, early_stopping],
     )
 
     # Save final model
