@@ -1,11 +1,13 @@
 import os
 import tensorflow as tf
 import argparse
-import matplotlib.pyplot as plt
-from keras.src.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
-from keras.src.preprocessing.image import ImageDataGenerator
-
-from model import getModel
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, CSVLogger
+from keras.utils import Sequence
+from model import get_model
+import cv2
+import numpy as np
 
 # Argument parser setup
 parser = argparse.ArgumentParser()
@@ -14,7 +16,7 @@ parser.add_argument("-ht", "--img_height", type=int, default=224)
 parser.add_argument("-sd", "--seed_number", type=int, default=24)
 parser.add_argument("-tbs", "--train_batch_size", type=int, default=32)
 parser.add_argument("-vbs", "--val_batch_size", type=int, default=32)
-parser.add_argument("-e", "--num_epochs", type=int, default=10)
+parser.add_argument("-e", "--num_epochs", type=int, default=50)
 parser.add_argument("-i", "--input_data_path", type=str, required=True, help="Path to resized dataset root folder")
 parser.add_argument("-m", "--model_path", type=str, default='model', help="Path to model output folder")
 
@@ -26,6 +28,38 @@ if gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
+
+class DataGenerator(Sequence):
+    def __init__(self, image_paths, labels, batch_size, img_size, augmentations):
+        self.image_paths = image_paths
+        self.labels = labels
+        self.batch_size = batch_size
+        self.img_size = img_size
+        self.augmentations = augmentations
+        self.indices = np.arange(len(self.image_paths))
+
+    def __len__(self):
+        return len(self.image_paths) // self.batch_size
+
+    def __getitem__(self, index):
+        batch_indices = self.indices[index * self.batch_size:(index + 1) * self.batch_size]
+        batch_images = [self.image_paths[i] for i in batch_indices]
+        batch_labels = [self.labels[i] for i in batch_indices]
+
+        images = []
+        for img_path in batch_images:
+            image = cv2.imread(img_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = cv2.resize(image, self.img_size)  # Ensure all images are resized to the same shape
+            if self.augmentations:
+                image = self.augmentations(image=image)['image']
+                image = np.transpose(image, (1, 2, 0))
+            images.append(np.array(image))  # Convert to NumPy array
+
+        return np.array(images), np.array(batch_labels)
+
+    def on_epoch_end(self):
+        np.random.shuffle(self.indices)
 
 if __name__ == '__main__':
     args = vars(parser.parse_args())
@@ -42,41 +76,44 @@ if __name__ == '__main__':
 
     # Define dataset paths
     training_dir = os.path.join(input_dir, "LCC_FASD_training")
-    development_dir = os.path.join(input_dir, "LCC_FASD_development")
     evaluation_dir = os.path.join(input_dir, "LCC_FASD_evaluation")
 
-    # ImageDataGenerators
-    train_datagen = ImageDataGenerator(
-        rescale=1.0 / 255,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.1,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode="nearest",
-    )
+    # Albumentations augmentations
+    train_augmentations = A.Compose([
+        A.Resize(224, 224, interpolation=cv2.INTER_CUBIC),
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.3),
+        A.RandomShadow(shadow_roi=(0, 0.5, 1, 1), num_shadows_lower=1, num_shadows_upper=2, p=0.2),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2()
+    ])
 
-    val_datagen = ImageDataGenerator(rescale=1.0 / 255)
+    val_augmentations = A.Compose([
+        A.Resize(224, 224, interpolation=cv2.INTER_CUBIC),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2()
+    ])
+
+    # Load image paths and labels
+    def load_data(data_dir):
+        image_paths = []
+        labels = []
+        for label, class_name in enumerate(['real', 'spoof']):
+            class_dir = os.path.join(data_dir, class_name)
+            for img_name in os.listdir(class_dir):
+                image_paths.append(os.path.join(class_dir, img_name))
+                labels.append(label)
+        return image_paths, labels
+
+    train_image_paths, train_labels = load_data(training_dir)
+    val_image_paths, val_labels = load_data(evaluation_dir)
 
     # Data generators
-    train_gen = train_datagen.flow_from_directory(
-        training_dir,
-        target_size=(img_width, img_height),
-        batch_size=train_batch_size,
-        class_mode="binary",
-        seed=seed_number,
-    )
-    val_gen = val_datagen.flow_from_directory(
-        evaluation_dir,
-        target_size=(img_width, img_height),
-        batch_size=val_batch_size,
-        class_mode="binary",
-        seed=seed_number,
-    )
+    train_gen = DataGenerator(train_image_paths, train_labels, train_batch_size, (img_width, img_height), train_augmentations)
+    val_gen = DataGenerator(val_image_paths, val_labels, val_batch_size, (img_width, img_height), val_augmentations)
 
     # Build the model
-    model = getModel(img_width, img_height)
+    model = get_model(img_width, img_height)
 
     # Callbacks
     save_dir = os.path.join(model_dir, "checkpoints")
@@ -95,53 +132,26 @@ if __name__ == '__main__':
         verbose=1,
     )
 
-    plateau_scheduler = ReduceLROnPlateau(factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7)
-
-    lr_scheduler = ReduceLROnPlateau(
-        monitor='val_loss', factor=0.5, patience=2, min_lr=1e-6, verbose=1
+    plateau_scheduler = ReduceLROnPlateau(
+        monitor='val_loss', factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7
     )
 
     early_stopping = EarlyStopping(
         monitor='val_acc',
-        patience=5,  # Stop after 5 epochs of no improvement
+        patience=5,
         restore_best_weights=True
     )
+
+    csv_logger = CSVLogger(os.path.join(model_dir, 'training_log.csv'), append=True)
 
     # Training
     history = model.fit(
         train_gen,
         validation_data=val_gen,
         epochs=num_epochs,
-        steps_per_epoch=len(train_gen),
-        validation_steps=len(val_gen),
-        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler, early_stopping, lr_scheduler],
+        callbacks=[best_checkpoint, cont_checkpoint, plateau_scheduler, early_stopping, csv_logger],
     )
 
     # Save final model
     saved_model_path = os.path.join(model_dir, "final_model.keras")
     tf.keras.models.save_model(model, saved_model_path)
-
-    # Plot metrics
-    # plt.figure(figsize=(12, 4))
-    #
-    # # Plot loss
-    # plt.subplot(1, 2, 1)
-    # plt.plot(history.history["loss"], label="Train Loss")
-    # plt.plot(history.history["val_loss"], label="Validation Loss")
-    # plt.title("Loss")
-    # plt.xlabel("Epochs")
-    # plt.ylabel("Loss")
-    # plt.legend()
-    #
-    # # Plot accuracy
-    # plt.subplot(1, 2, 2)
-    # plt.plot(history.history["accuracy"], label="Train Accuracy")
-    # plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
-    # plt.title("Accuracy")
-    # plt.xlabel("Epochs")
-    # plt.ylabel("Accuracy")
-    # plt.legend()
-    #
-    # # Save metrics plot
-    # metrics_plot_path = os.path.join(model_dir, "training_metrics.png")
-    # plt.savefig(metrics_plot_path, dpi=300, bbox_inches="tight")

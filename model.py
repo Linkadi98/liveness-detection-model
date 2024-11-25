@@ -5,7 +5,7 @@ from keras.optimizers import Adam
 from keras.regularizers import l2
 
 
-def getModel(img_width, img_height, type='small'):
+def get_model(img_width, img_height, type='small'):
     # Load MobileNetV3 Small/Large as the backbone
     if type == 'small':
         pretrain_net = MobileNetV3Small(
