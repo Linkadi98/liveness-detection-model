@@ -94,11 +94,11 @@ if __name__ == '__main__':
         verbose=1,
     )
 
-    plateau_scheduler = ReduceLROnPlateau(factor=0.2, patience=3, verbose=1, min_delta=0.005, min_lr=5e-7)
+    plateau_scheduler = ReduceLROnPlateau(factor=0.1, patience=2, verbose=1, min_delta=0.005, min_lr=1e-7)
 
     early_stopping = EarlyStopping(
-        monitor='val_acc',
-        patience=5,  # Stop after 5 epochs of no improvement
+        monitor='val_loss',
+        patience=3,
         restore_best_weights=True
     )
 
@@ -130,8 +130,8 @@ if __name__ == '__main__':
 
     # Plot accuracy
     plt.subplot(1, 2, 2)
-    plt.plot(history.history["accuracy"], label="Train Accuracy")
-    plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+    plt.plot(history.history["acc"], label="Train Accuracy")
+    plt.plot(history.history["val_acc"], label="Validation Accuracy")
     plt.title("Accuracy")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")

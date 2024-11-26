@@ -24,12 +24,12 @@ def GetModel(img_width, img_height, type='small'):
 
     # Add custom classification layers
     x = pretrain_net.output
-    x = Conv2D(32, (1, 1), activation='relu', padding='same')(x)
+    # x = Conv2D(32, (1, 1), padding='same')(x)
     x = GlobalAveragePooling2D()(x)
-    x = Dense(128, activation='relu')(x)
+    x = Dense(128)(x)
     x = BatchNormalization()(x)  # Normalize activation
     x = Dropout(0.5)(x)
-    x = Dense(64, activation='relu')(x)
+    x = Dense(64)(x)
     x = Dropout(rate=0.2)(x)
 
     # Final classification layer
@@ -37,7 +37,7 @@ def GetModel(img_width, img_height, type='small'):
 
     # Compile the model
     model = Model(inputs=pretrain_net.input, outputs=x, name='mobilenetv3_spoof')
-    learning_rate = 0.0001
+    learning_rate = 1e-4
     model.compile(optimizer=Adam(learning_rate=learning_rate), loss='binary_crossentropy', metrics=['acc'])
 
     return model

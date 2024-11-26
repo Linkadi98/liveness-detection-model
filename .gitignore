@@ -4,3 +4,4 @@ model/
 test/
 venv/
 LCC_FASD/
+data_resized/
