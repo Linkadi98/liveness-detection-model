@@ -1,6 +1,7 @@
 from keras import Model
 from keras.src.applications.mobilenet_v3 import MobileNetV3Small, MobileNetV3Large
-from keras.src.layers import Conv2D, GlobalAveragePooling2D, Dense, Dropout, BatchNormalization
+from keras.src.layers import Conv2D, GlobalAveragePooling2D, Dense, Dropout, BatchNormalization, AveragePooling2D, \
+    Flatten
 from keras.src.optimizers import Adam
 
 
@@ -19,18 +20,22 @@ def GetModel(img_width, img_height, type='small'):
             weights='imagenet'
         )
 
-    for layer in pretrain_net.layers[:100]:  # Freeze first 100 layers
-        layer.trainable = False
+    for layer in pretrain_net.layers:  # Freeze first 100 layers
+        layer.trainable = True
 
-    # Add custom classification layers
     x = pretrain_net.output
-    # x = Conv2D(32, (1, 1), padding='same')(x)
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(128)(x)
-    x = BatchNormalization()(x)  # Normalize activation
-    x = Dropout(0.5)(x)
-    x = Dense(64)(x)
-    x = Dropout(rate=0.2)(x)
+
+    p = 0.6
+
+    x = BatchNormalization(axis=1, name="net_out")(x)
+    x = Dropout(p / 4)(x)
+    x = Flatten()(x)
+    x = Dense(512)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(p)(x)
+    x = Dense(512)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(p / 2)(x)
 
     # Final classification layer
     x = Dense(1, activation='sigmoid', name='classifier')(x)
