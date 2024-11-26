@@ -25,15 +25,15 @@ def GetModel(img_width, img_height, type='small'):
 
     x = pretrain_net.output
 
-    p = 0.6
+    p = 0.4
 
-    x = BatchNormalization(axis=1, name="net_out")(x)
+    # x = BatchNormalization(axis=1, name="net_out")(x)
     x = Dropout(p / 4)(x)
     x = Flatten()(x)
-    x = Dense(512)(x)
+    x = Dense(128)(x)
     x = BatchNormalization()(x)
     x = Dropout(p)(x)
-    x = Dense(512)(x)
+    x = Dense(128)(x)
     x = BatchNormalization()(x)
     x = Dropout(p / 2)(x)
 

@@ -4,28 +4,29 @@ import numpy as np
 import tensorflow as tf
 import argparse
 import csv
+from tqdm import tqdm
+
+# Suppress TensorFlow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.get_logger().setLevel('ERROR')
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--threshold", type=float)
 parser.add_argument("-d", "--test_dir", type=str, default='test', help="path to 'test' folder")
-parser.add_argument("-m", "--model_file", type=str, default='model.tflite', help="path to '.tflite' model file")
+parser.add_argument("-m", "--model_file", type=str, default='final_model.keras', help="path to '.keras' model file")
 parser.add_argument("-f", "--output_file", type=str, default='result.csv', help="path to file with results")
 parser.add_argument("-e", "--epoch", type=int, default=1)
 parser.add_argument("-s", "--steps_per_epoch", type=int, default=1)
 
-
-def predict_spoof(image_path, width, height, interpreter):
+def predict_spoof(image_path, width, height, model, threshold):
     img_array = cv2.imread(image_path, cv2.IMREAD_COLOR)
     img_resize = cv2.resize(img_array, (width, height))
     data = np.asarray(img_resize)
     to_predict = np.array([data], dtype=np.float32) / 255
-    interpreter.set_tensor(input_details[0]['index'], to_predict)
-    interpreter.invoke()
-    tflite_results = interpreter.get_tensor(output_details[0]['index'])
-    prediction_value = np.squeeze(tflite_results)
+    prediction_value = model.predict(to_predict, verbose=0)
+    prediction_value = np.squeeze(prediction_value)
 
     return 0 if prediction_value < threshold else 1
-
 
 if __name__ == '__main__':
     args = vars(parser.parse_args())
@@ -38,30 +39,26 @@ if __name__ == '__main__':
     steps_per_epoch = args["steps_per_epoch"]
 
     if os.path.isfile(model_file_name):
-        interpreter = tf.lite.Interpreter(model_path=model_file_name)
-        interpreter.allocate_tensors()
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-        img_width = input_details[0]['shape'][1]
-        img_height = input_details[0]['shape'][2]
+        model = tf.keras.models.load_model(model_file_name)
+        img_width, img_height = model.input.shape[1], model.input.shape[2]
         spoof_dir = os.path.join(test_dir, "spoof")
         real_dir = os.path.join(test_dir, "real")
 
         tp, tn, fp, fn = 0, 0, 0, 0
 
-        for img in os.listdir(spoof_dir):
+        for img in tqdm(os.listdir(spoof_dir), desc="Processing spoof images"):
             img_name, ext = os.path.splitext(img)
             if ext in [".png", ".jpg", ".bmp"]:
-                prediction = predict_spoof(os.path.join(spoof_dir, img), img_width, img_height, interpreter)
+                prediction = predict_spoof(os.path.join(spoof_dir, img), img_width, img_height, model, threshold)
                 if prediction == 0:
                     fp += 1
                 else:
                     tn += 1
 
-        for img in os.listdir(real_dir):
+        for img in tqdm(os.listdir(real_dir), desc="Processing real images"):
             img_name, ext = os.path.splitext(img)
             if ext in [".png", ".jpg", ".bmp"]:
-                prediction = predict_spoof(os.path.join(real_dir, img), img_width, img_height, interpreter)
+                prediction = predict_spoof(os.path.join(real_dir, img), img_width, img_height, model, threshold)
                 if prediction == 1:
                     fn += 1
                 else:
@@ -82,4 +79,4 @@ if __name__ == '__main__':
             writer = csv.writer(file)
             writer.writerow([epoch, steps_per_epoch, threshold, FAR, FRR, ACC, ACER])
     else:
-        print("There is no model.tflite file")
+        print("There is no model file")
