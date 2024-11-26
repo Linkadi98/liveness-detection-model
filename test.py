@@ -13,7 +13,7 @@ tf.get_logger().setLevel('ERROR')
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--threshold", type=float)
 parser.add_argument("-d", "--test_dir", type=str, default='test', help="path to 'test' folder")
-parser.add_argument("-m", "--model_file", type=str, default='final_model.keras', help="path to '.keras' model file")
+parser.add_argument("-m", "--model_file", type=str, default='final_model.keras', help="path to '.keras' or '.h5' model file")
 parser.add_argument("-f", "--output_file", type=str, default='result.csv', help="path to file with results")
 parser.add_argument("-e", "--epoch", type=int, default=1)
 parser.add_argument("-s", "--steps_per_epoch", type=int, default=1)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     epoch = args["epoch"]
     steps_per_epoch = args["steps_per_epoch"]
 
-    if os.path.isfile(model_file_name):
+    if os.path.isfile(model_file_name) and (model_file_name.endswith('.keras') or model_file_name.endswith('.h5')):
         model = tf.keras.models.load_model(model_file_name)
         img_width, img_height = model.input.shape[1], model.input.shape[2]
         spoof_dir = os.path.join(test_dir, "spoof")
@@ -79,4 +79,4 @@ if __name__ == '__main__':
             writer = csv.writer(file)
             writer.writerow([epoch, steps_per_epoch, threshold, FAR, FRR, ACC, ACER])
     else:
-        print("There is no model file")
+        print("There is no valid model file")
